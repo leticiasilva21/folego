@@ -199,7 +199,7 @@ details.old .inner { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; m
 .rq-comp { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; font-size: 14px; color: var(--muted); background: var(--accent-soft); border-radius: 10px; padding: 8px 10px; }
 .rq-step { display: inline-flex; align-items: center; gap: 2px; background: var(--surface); border-radius: 8px; border: 1px solid var(--line); }
 .rq-step button { border: 0; background: transparent; width: 34px; height: 34px; font-size: 18px; color: var(--accent); font-weight: 700; }
-.rq-step:last-child { margin-left: auto; }
+.rq-comp > span:nth-of-type(2) { margin-left: auto; }
 .rq-step b { color: var(--ink); min-width: 48px; text-align: center; font-variant-numeric: tabular-nums; }
 .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .keypad button { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; height: 46px; font-size: 22px; font-weight: 600; font-family: var(--body); color: var(--ink); touch-action: manipulation; }
@@ -395,21 +395,21 @@ img { max-width: 100%; }
   }
 
   // faturas do mês de referência: um campo por cartão, salvo como lançamento à vista
-  const qfId = cardId => 'fatura-' + cardId + '-' + CUR;
-  function quickFaturas() {
-    if (!S.config.cards.length) return '';
+  const qfId = (cardId, m = CUR) => 'fatura-' + cardId + '-' + m;
+  function quickFaturas(m = CUR) {
+    if (!S.config.cards.length) return `<section class="panel"><div class="empty"><strong>Nenhum cartão cadastrado</strong>Cadastre seus cartões em Ajustes para lançar as faturas.</div></section>`;
     const group = owner => S.config.cards.filter(c => c.owner === owner).map(c => {
-      const own = S.entries.find(e => e.id === qfId(c.id));
-      const others = sum(S.entries.filter(e => e.method === c.id && e.id !== qfId(c.id)).map(e => amountIn(e, CUR)));
+      const own = S.entries.find(e => e.id === qfId(c.id, m));
+      const others = sum(S.entries.filter(e => e.method === c.id && e.id !== qfId(c.id, m)).map(e => amountIn(e, m)));
       return `<div class="qf-row">
         <label for="qf-${c.id}">${esc(c.name)}${others ? `<span class="hint">+ ${brl(others)} em compras lançadas à parte</span>` : ''}</label>
-        <input id="qf-${c.id}" data-qf="${c.id}" inputmode="decimal" placeholder="0,00" value="${own ? fmtInput(own.per) : ''}" autocomplete="off">
+        <input id="qf-${c.id}" data-qf="${c.id}" data-qm="${m}" inputmode="decimal" placeholder="0,00" value="${own ? fmtInput(own.per) : ''}" autocomplete="off">
       </div>`;
     }).join('');
-    const tot = sum(S.config.cards.map(c => summary(CUR).byCard[c.id] || 0));
+    const tot = sum(S.config.cards.map(c => summary(m).byCard[c.id] || 0));
     return `<section class="panel" id="qf">
-      <div class="section-h"><h2>Faturas de ${mLong(CUR)}</h2><span class="sub">total ${brl(tot)}</span></div>
-      <p class="sub" style="margin:0 0 12px">Digite o valor de cada fatura que vence em ${mLong(CUR)}, como aparece no app do banco. Salva quando você sai do campo. As parcelas que já estão nessa fatura não precisam ser lançadas de novo; lance como "compra antiga" só o que continua de ${mShort(addM(CUR, 1))} em diante.</p>
+      <div class="section-h"><h2>Valor das faturas de ${mLong(m)}</h2><span class="sub">total ${brl(tot)}</span></div>
+      <p class="sub" style="margin:0 0 12px">Digite o valor de cada fatura que vence em ${mLong(m)}, como aparece no app do banco. Salva quando você sai do campo. As parcelas que já estão nessa fatura não precisam ser lançadas de novo: lance em <b>Lançar → Compra parcelada</b> só o que continua de ${mShort(addM(m, 1))} em diante.</p>
       <div class="two">
         <div><div class="label" style="margin-bottom:6px">Cartões dos seus pais</div>${group('pais')}</div>
         <div><div class="label" style="margin-bottom:6px">Seus cartões</div>${group('meu')}</div>
@@ -418,13 +418,14 @@ img { max-width: 100%; }
   }
   async function saveQuick(input) {
     const c = cardById(input.dataset.qf); if (!c || !S.db) return;
+    const m = input.dataset.qm || CUR;
     const v = r2(parseMoney(input.value));
-    const id = qfId(c.id);
+    const id = qfId(c.id, m);
     const cur = S.entries.find(e => e.id === id);
     if ((cur ? cur.per : 0) === v) return;
     try {
       if (!v) await S.db.collection('entries').doc(id).delete();
-      else await S.db.collection('entries').doc(id).set({desc: 'Fatura ' + c.name + ' ' + mShort(CUR), cat: 'Fatura (valor total)', date: todayISO, createdAt: cur?.createdAt || Date.now(), kind: 'compra', method: c.id, per: v, n: 1, N: 1, k0: 1, first: CUR});
+      else await S.db.collection('entries').doc(id).set({desc: 'Fatura ' + c.name + ' ' + mShort(m), cat: 'Fatura (valor total)', date: todayISO, createdAt: cur?.createdAt || Date.now(), kind: 'compra', method: c.id, per: v, n: 1, N: 1, k0: 1, first: m});
       toast('Fatura ' + c.name + ' salva');
     } catch { toast('Não salvou. Tente de novo.'); }
   }
@@ -478,6 +479,7 @@ img { max-width: 100%; }
     $('#main').innerHTML = `
       <div class="chips" role="group" aria-label="Mês da fatura">${ms.map(x => `<button data-cm="${x}" aria-pressed="${x === m}">${mShort(x)}</button>`).join('')}</div>
       <div class="stack">
+        ${quickFaturas(m)}
         <div class="months" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
           <div class="mcell"><span class="m">Cartões dos pais</span><span class="v">${brl(s.pais)}</span></div>
           <div class="mcell"><span class="m">Seus cartões</span><span class="v">${brl(s.meus)}</span></div>
@@ -515,7 +517,7 @@ img { max-width: 100%; }
           <div class="field full">
             <label>O que é</label>
             <div class="seg" id="f-kind">
-              <button type="button" data-k="credito" aria-pressed="${kind === 'credito'}">Cartão de crédito</button>
+              <button type="button" data-k="credito" aria-pressed="${kind === 'credito'}">Cartão (à vista ou parcelado)</button>
               <button type="button" data-k="pix" aria-pressed="${kind === 'pix'}">Pix ou débito</button>
               <button type="button" data-k="boleto" aria-pressed="${kind === 'boleto'}">Boleto ou empréstimo</button>
               <button type="button" data-k="receita" aria-pressed="${kind === 'receita'}">Comissão / entrada</button>
@@ -555,7 +557,7 @@ img { max-width: 100%; }
             <input id="f-N" type="number" min="1" max="48" inputmode="numeric" value="${e?.N || 1}">
           </div>
           <details class="old" data-for="credito boleto" ${e && Number(e.k0) > 1 ? 'open' : ''}>
-            <summary>Compra antiga, já paguei algumas parcelas</summary>
+            <summary>Compra parcelada antiga: já paguei algumas parcelas</summary>
             <div class="inner">
               <div class="field">
                 <label for="f-k">Parcela que vem na fatura abaixo</label>
@@ -769,7 +771,7 @@ img { max-width: 100%; }
             <b id="rq-first">${mShort(qFirst())}</b>
             <button type="button" data-rq="next" aria-label="Próximo mês">›</button>
           </div>
-          ${isCard ? `<div class="rq-step"><button type="button" data-rq="nminus" aria-label="Menos parcelas">−</button><b>${q.n}x</b><button type="button" data-rq="nplus" aria-label="Mais parcelas">+</button></div>` : ''}
+          ${isCard ? `<span>Parcelas</span><div class="rq-step"><button type="button" data-rq="nminus" aria-label="Menos parcelas">−</button><b>${q.n}x</b><button type="button" data-rq="nplus" aria-label="Mais parcelas">+</button></div>` : ''}
         </div>
 
         <div class="rq-chips cat" role="group" aria-label="Categoria">${QCATS.map(([l, c]) => `<button type="button" data-rc="${esc(l)}" aria-pressed="${(q.label || '') === l}">${esc(l)}</button>`).join('')}</div>
@@ -779,7 +781,7 @@ img { max-width: 100%; }
           ${['1','2','3','4','5','6','7','8','9','00','0','⌫'].map(k => `<button type="button" data-kp="${k}" aria-label="${k === '⌫' ? 'Apagar' : k}">${k}</button>`).join('')}
         </div>
         <button type="button" class="btn rq-go" data-rq="save" ${q.cents ? '' : 'disabled'}>Lançar ${q.cents ? brl(q.cents / 100) : ''}</button>
-        <button type="button" class="rq-more" data-rq="full">Parcela antiga, boleto ou comissão → lançamento completo</button>
+        <button type="button" class="rq-more" data-rq="full">Compra parcelada antiga (ex.: 4ª de 10x), boleto ou comissão →</button>
       </section>`;
     qImpact();
   }
