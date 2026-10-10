@@ -409,7 +409,7 @@ img { max-width: 100%; }
     const tot = sum(S.config.cards.map(c => summary(m).byCard[c.id] || 0));
     return `<section class="panel" id="qf">
       <div class="section-h"><h2>Valor das faturas de ${mLong(m)}</h2><span class="sub">total ${brl(tot)}</span></div>
-      <p class="sub" style="margin:0 0 12px">Digite o valor de cada fatura que vence em ${mLong(m)}, como aparece no app do banco. Salva quando você sai do campo. As parcelas que já estão nessa fatura não precisam ser lançadas de novo: lance em <b>Lançar → Compra parcelada</b> só o que continua de ${mShort(addM(m, 1))} em diante.</p>
+      <p class="sub" style="margin:0 0 12px">Digite o valor de cada fatura que vence em ${mLong(m)}, como aparece no app do banco. Salva quando você sai do campo. As parcelas que já estão nessa fatura não precisam ser lançadas de novo: lance em <b>Lançar</b>, no link <b>Compra parcelada antiga</b>, só o que continua de ${mShort(addM(m, 1))} em diante.</p>
       <div class="two">
         <div><div class="label" style="margin-bottom:6px">Cartões dos seus pais</div>${group('pais')}</div>
         <div><div class="label" style="margin-bottom:6px">Seus cartões</div>${group('meu')}</div>
