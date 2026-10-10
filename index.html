@@ -940,8 +940,8 @@ img { max-width: 100%; }
 
 
   // ---------- banco (Supabase) com a mesma interface usada pelo app ----------
-  const SUPABASE_URL = '__SUPABASE_URL__';
-  const SUPABASE_KEY = '__SUPABASE_KEY__';
+  const SUPABASE_URL = 'https://tiyhtmfujkjunyccuygl.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_zT5X0VJYLDFkyKcqRjnRDw_RAYoc7Vh';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth: {persistSession: true, autoRefreshToken: true}});
   const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   function makeDb(uid) {
